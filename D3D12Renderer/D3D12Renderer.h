@@ -1,0 +1,15 @@
+﻿#pragma once
+#include <Windows.h>
+#include <d3d12.h>
+#include <wrl/client.h>
+
+using Microsoft::WRL::ComPtr;
+
+class D3D12Renderer
+{
+public:
+	bool Initialize(HWND hwnd);
+private:
+	ComPtr<ID3D12Device> m_device;
+	ComPtr<ID3D12CommandQueue> m_commandQueue;
+};

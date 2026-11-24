@@ -1,4 +1,5 @@
 ﻿#include <Windows.h>
+#include "D3D12Renderer.h"
 
 /*
 해야할 일 정리
@@ -38,6 +39,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 	);
 
 	if (hwnd == NULL) return 0;
+
+	D3D12Renderer renderer;
+	if (!renderer.Initialize(hwnd)) return 1;
 
 	ShowWindow(hwnd, nCmdShow);
 
