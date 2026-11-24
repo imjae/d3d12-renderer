@@ -45,11 +45,27 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
 	ShowWindow(hwnd, nCmdShow);
 
+	renderer.Render();
+
 	MSG msg = {};
-	while (GetMessage(&msg, NULL, 0, 0) > 0)
+	for (;;)
 	{
-		TranslateMessage(&msg);
-		DispatchMessage(&msg);
+		if (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE))
+		{
+			if (msg.message == WM_QUIT)
+			{
+				return static_cast<int>(msg.wParam);
+			}
+
+			TranslateMessage(&msg);
+			DispatchMessageW(&msg);
+			continue;
+		}
+
+		if (!renderer.Render())
+		{
+			return 1;
+		}
 	}
 
 	return 0;

@@ -168,5 +168,15 @@ bool D3D12Renderer::Render()
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 	m_commandList->ResourceBarrier(1, &barrier);
  
-	return true;;
+	HRESULT commandListCloseHr = m_commandList->Close();
+	if (FAILED(commandListCloseHr)) return false;
+
+	ID3D12CommandList* lists[] = {m_commandList.Get()};
+
+	m_commandQueue->ExecuteCommandLists(1, lists);
+
+	HRESULT presentHr = m_swapChain->Present(1, 0);
+
+	bool gpuFinished = WaitForGPU();
+	return SUCCEEDED(presentHr) && gpuFinished;
 }
