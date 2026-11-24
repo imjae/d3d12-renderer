@@ -35,4 +35,34 @@ bool D3D12Renderer::Initialize(HWND hwnd)
 	);
 
 	if (FAILED(queueHr)) return false;
+
+	ComPtr<IDXGIFactory4> factory;
+	const HRESULT factoryHr = CreateDXGIFactory2(0, IID_PPV_ARGS(&factory));
+
+	if (FAILED(factoryHr)) return false;
+
+	DXGI_SWAP_CHAIN_DESC1 swapChainDesc{};
+	swapChainDesc.BufferCount = 2;
+	swapChainDesc.Width = 0;
+	swapChainDesc.Height = 0;
+	swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+	swapChainDesc.SampleDesc.Count = 1;
+	swapChainDesc.SampleDesc.Quality = 0;
+
+	ComPtr<IDXGISwapChain1> swapChain;
+	const HRESULT swapChainHr = factory->CreateSwapChainForHwnd(
+		m_commandQueue.Get(),
+		hwnd,
+		&swapChainDesc,
+		nullptr,
+		nullptr,
+		&swapChain
+	);
+
+	if (FAILED(swapChainHr)) return false;
+
+	const HRESULT swapChainASHr = swapChain.As(&m_swapChain);
+	if (SUCCEEDED(swapChainASHr)) return true;
 }

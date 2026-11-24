@@ -2,6 +2,7 @@
 #include <Windows.h>
 #include <d3d12.h>
 #include <wrl/client.h>
+#include <dxgi1_4.h>
 
 using Microsoft::WRL::ComPtr;
 
@@ -12,4 +13,5 @@ public:
 private:
 	ComPtr<ID3D12Device> m_device;
 	ComPtr<ID3D12CommandQueue> m_commandQueue;
+	ComPtr<IDXGISwapChain3> m_swapChain;
 };
