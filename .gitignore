@@ -1,0 +1,11 @@
+# Visual Studio local settings and caches
+.vs/
+*.vcxproj.user
+
+# MSBuild output and intermediate files
+/D3D12Renderer/Debug/
+/D3D12Renderer/Release/
+/D3D12Renderer/x64/
+/D3D12Renderer/D3D12Renderer/Debug/
+/D3D12Renderer/D3D12Renderer/Release/
+/D3D12Renderer/D3D12Renderer/x64/
