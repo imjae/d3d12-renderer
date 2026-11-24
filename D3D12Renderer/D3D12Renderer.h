@@ -14,4 +14,9 @@ private:
 	ComPtr<ID3D12Device> m_device;
 	ComPtr<ID3D12CommandQueue> m_commandQueue;
 	ComPtr<IDXGISwapChain3> m_swapChain;
+
+	static constexpr UINT BackBufferCount = 2;
+	ComPtr<ID3D12Resource> m_backBuffers[BackBufferCount];
+	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
+	UINT m_rtvDescriptorSize = 0;
 };

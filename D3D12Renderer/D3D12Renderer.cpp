@@ -64,5 +64,31 @@ bool D3D12Renderer::Initialize(HWND hwnd)
 	if (FAILED(swapChainHr)) return false;
 
 	const HRESULT swapChainASHr = swapChain.As(&m_swapChain);
-	if (SUCCEEDED(swapChainASHr)) return true;
+	if (FAILED(swapChainASHr)) return false;
+
+	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc {};
+	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+	rtvHeapDesc.NumDescriptors = BackBufferCount;
+	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+
+	HRESULT rtvHeapHr = m_device->CreateDescriptorHeap(
+		&rtvHeapDesc,
+		IID_PPV_ARGS(&m_rtvHeap)
+	);
+
+	if (FAILED(rtvHeapHr)) return false;
+
+	m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
+	for (int i = 0; i < BackBufferCount; i++)
+	{
+		HRESULT getBufferHr = m_swapChain->GetBuffer(i, IID_PPV_ARGS(&m_backBuffers[i]));
+		if (FAILED(getBufferHr)) return false;
+
+		m_device->CreateRenderTargetView(m_backBuffers[i].Get(), nullptr, rtvHandle);
+		rtvHandle.ptr += m_rtvDescriptorSize;
+	}
+
+	return true;
 }
