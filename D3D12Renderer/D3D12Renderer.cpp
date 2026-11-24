@@ -90,5 +90,8 @@ bool D3D12Renderer::Initialize(HWND hwnd)
 		rtvHandle.ptr += m_rtvDescriptorSize;
 	}
 
+	HRESULT commandAllocatorHr = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator));
+	if (FAILED(commandAllocatorHr)) return false;
+
 	return true;
 }

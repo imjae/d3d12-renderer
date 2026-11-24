@@ -19,4 +19,6 @@ private:
 	ComPtr<ID3D12Resource> m_backBuffers[BackBufferCount];
 	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
 	UINT m_rtvDescriptorSize = 0;
+
+	ComPtr<ID3D12CommandAllocator> m_commandAllocator;
 };
