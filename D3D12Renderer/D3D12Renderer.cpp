@@ -105,5 +105,37 @@ bool D3D12Renderer::Initialize(HWND hwnd)
 	HRESULT commandListCloseHr = m_commandList->Close();
 	if (FAILED(commandListCloseHr)) return false;
 
+	HRESULT createFenceHr = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence));
+	if (FAILED(createFenceHr)) return false;
+
+	m_fenceEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+	if (m_fenceEvent == nullptr)
+	{
+		return false;
+	}
+
 	return true;
+}
+
+bool D3D12Renderer::WaitForGPU()
+{
+	const UINT64 fenceValue = m_fenceValue + 1;
+	if (FAILED(m_commandQueue->Signal(m_fence.Get(), fenceValue)))
+	{
+		return false;
+	}
+
+	m_fenceValue = fenceValue;
+
+	if (m_fence->GetCompletedValue() >= fenceValue)
+	{
+		return true;
+	}
+
+	if (FAILED(m_fence->SetEventOnCompletion(fenceValue, m_fenceEvent)))
+	{
+		return false;
+	}
+
+	return WaitForSingleObject(m_fenceEvent, INFINITE) == WAIT_OBJECT_0;
 }

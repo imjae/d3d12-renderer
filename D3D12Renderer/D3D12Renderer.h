@@ -22,4 +22,10 @@ private:
 
 	ComPtr<ID3D12CommandAllocator> m_commandAllocator;
 	ComPtr<ID3D12GraphicsCommandList> m_commandList;
+
+	ComPtr<ID3D12Fence> m_fence;
+	UINT64 m_fenceValue = 0;
+	HANDLE m_fenceEvent = nullptr;
+
+	bool WaitForGPU();
 };
