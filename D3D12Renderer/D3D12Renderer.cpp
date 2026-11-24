@@ -139,3 +139,34 @@ bool D3D12Renderer::WaitForGPU()
 
 	return WaitForSingleObject(m_fenceEvent, INFINITE) == WAIT_OBJECT_0;
 }
+
+bool D3D12Renderer::Render()
+{
+	HRESULT commandAllocatorResetHr = m_commandAllocator->Reset();
+	if (FAILED(commandAllocatorResetHr)) return false;
+
+	HRESULT commandListResetHr = m_commandList->Reset(m_commandAllocator.Get(), nullptr);
+	if (FAILED(commandListResetHr)) return false;
+
+	UINT frameIndex = m_swapChain->GetCurrentBackBufferIndex();
+	D3D12_RESOURCE_BARRIER barrier{};
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource = m_backBuffers[frameIndex].Get();
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	m_commandList->ResourceBarrier(1, &barrier);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
+	rtvHandle.ptr += frameIndex * m_rtvDescriptorSize;
+
+	const float clearColor[4] = {0.08f, 0.25f, 0.70f, 1.0f};
+	m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+	m_commandList->ResourceBarrier(1, &barrier);
+ 
+	return true;;
+}

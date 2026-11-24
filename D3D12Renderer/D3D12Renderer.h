@@ -10,6 +10,7 @@ class D3D12Renderer
 {
 public:
 	bool Initialize(HWND hwnd);
+	bool Render();
 private:
 	ComPtr<ID3D12Device> m_device;
 	ComPtr<ID3D12CommandQueue> m_commandQueue;
