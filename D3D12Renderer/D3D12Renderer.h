@@ -21,4 +21,5 @@ private:
 	UINT m_rtvDescriptorSize = 0;
 
 	ComPtr<ID3D12CommandAllocator> m_commandAllocator;
+	ComPtr<ID3D12GraphicsCommandList> m_commandList;
 };

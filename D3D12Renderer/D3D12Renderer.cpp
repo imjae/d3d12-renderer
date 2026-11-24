@@ -93,5 +93,17 @@ bool D3D12Renderer::Initialize(HWND hwnd)
 	HRESULT commandAllocatorHr = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator));
 	if (FAILED(commandAllocatorHr)) return false;
 
+	HRESULT commandListHr = m_device->CreateCommandList(
+		0,
+		D3D12_COMMAND_LIST_TYPE_DIRECT,
+		m_commandAllocator.Get(),
+		nullptr,
+		IID_PPV_ARGS(&m_commandList)
+	);
+	if (FAILED(commandListHr)) return false;
+
+	HRESULT commandListCloseHr = m_commandList->Close();
+	if (FAILED(commandListCloseHr)) return false;
+
 	return true;
 }
