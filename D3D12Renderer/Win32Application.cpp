@@ -1,5 +1,6 @@
 ﻿#include <Windows.h>
 #include "D3D12Renderer.h"
+#include "Win32Application.h"
 
 /*
 해야할 일 정리
@@ -10,14 +11,13 @@
 5. 메시지 루프 돌리기
 */
 
-LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
 {
 	const wchar_t CLASS_NAME[] = L"Main Window";
 
 	WNDCLASS wc = {};
-	wc.lpfnWndProc = WindowProc;
+	wc.lpfnWndProc = Win32Application::WindowProc;
 	wc.hInstance = hInstance;
 	wc.lpszClassName = CLASS_NAME;
 
@@ -43,6 +43,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 	D3D12Renderer renderer;
 	if (!renderer.Initialize(hwnd)) return 1;
 
+	Win32Application app;
+	app.AttachWindowState(hwnd);
+
 	ShowWindow(hwnd, nCmdShow);
 
 	renderer.Render();
@@ -62,6 +65,23 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 			continue;
 		}
 
+		if (app.ConsumeResizePending() && !IsIconic(hwnd))
+		{
+			RECT clientRect{};
+			if (!GetClientRect(hwnd, &clientRect)) return 1;
+
+			const LONG width = clientRect.right - clientRect.left;
+			const LONG height = clientRect.bottom - clientRect.top;
+
+			if (width > 0 && height > 0)
+			{
+				renderer.Resize(
+					static_cast<UINT>(width),
+					static_cast<UINT>(height)
+				);
+			}
+		}
+
 		if (!renderer.Render())
 		{
 			return 1;
@@ -71,7 +91,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 	return 0;
 }
 
-LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK Win32Application::WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMsg)
 	{
@@ -87,8 +107,29 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 		EndPaint(hwnd, &ps);
 	}
+	case WM_SIZE:
+	{
+		auto* state = reinterpret_cast<WindowState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+		if (state != nullptr)
+		{
+			state->resizePending = true;
+		}
+	}
 	return 0;
 
 	}
 	return DefWindowProc(hwnd, uMsg, wParam, lParam);
+}
+
+void Win32Application::AttachWindowState(HWND hwnd)
+{
+	SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(&m_windowState));
+}
+
+bool Win32Application::ConsumeResizePending()
+{
+	const bool pending = m_windowState.resizePending;
+	m_windowState.resizePending = false;
+
+	return pending;
 }

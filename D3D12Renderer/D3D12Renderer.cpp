@@ -86,9 +86,11 @@ bool D3D12Renderer::Initialize(HWND hwnd)
 		rtvHandle.ptr += m_rtvDescriptorSize;
 	}
 
+	const auto desc = m_backBuffers[0]->GetDesc();
+	Resize(static_cast<UINT>(desc.Width), desc.Height);
+
 	HRESULT commandAllocatorHr = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator));
 	if (FAILED(commandAllocatorHr)) return false;
-
 
 	ComPtr<ID3DBlob> vertexShader;
 	ComPtr<ID3DBlob> pixelShader;
@@ -296,7 +298,9 @@ bool D3D12Renderer::Render()
 	};
 
 	m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
+	//m_commandList->RSSetViewports(1, &m_viewport);
 	m_commandList->RSSetViewports(1, &viewport);
+	//m_commandList->RSSetScissorRects(1, &m_scissorRect);
 	m_commandList->RSSetScissorRects(1, &scissorRect);
 
 	m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
@@ -319,4 +323,20 @@ bool D3D12Renderer::Render()
 
 	bool gpuFinished = WaitForGPU();
 	return SUCCEEDED(presentHr) && gpuFinished;
+}
+
+void D3D12Renderer::Resize(UINT width, UINT height)
+{
+	m_viewport = {
+		0.0f,0.0f,                 // TopLeftX, TopLeftY
+		static_cast<float>(width),  // Width
+		static_cast<float>(height), // Height
+	};
+
+	m_scissorRect = {
+		0,						  // left
+		0,						  // top
+		static_cast<LONG>(width),   // right
+		static_cast<LONG>(height)   // bottom
+	};
 }

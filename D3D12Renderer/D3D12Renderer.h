@@ -13,7 +13,12 @@ class D3D12Renderer
 public:
 	bool Initialize(HWND hwnd);
 	bool Render();
+	void Resize(UINT width, UINT height);
+
 private:
+	D3D12_VIEWPORT m_viewport;
+	D3D12_RECT m_scissorRect;
+
 	struct Vertex
 	{
 		XMFLOAT3 position; // x, y, z
