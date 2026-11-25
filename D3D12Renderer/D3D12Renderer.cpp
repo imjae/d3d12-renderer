@@ -1,4 +1,5 @@
 ﻿#include "D3D12Renderer.h"
+#include <d3dcompiler.h>
 
 
 bool D3D12Renderer::Initialize(HWND hwnd)
@@ -10,11 +11,12 @@ bool D3D12Renderer::Initialize(HWND hwnd)
 	const HRESULT deviceHr = D3D12CreateDevice(
 		nullptr,
 		D3D_FEATURE_LEVEL_11_0,
-		IID_PPV_ARGS(&m_device));
+		IID_PPV_ARGS(&m_device)
+	);
 
 	if (FAILED(deviceHr)) return false;
 
-	D3D12_COMMAND_QUEUE_DESC commandQueueDesc {};
+	D3D12_COMMAND_QUEUE_DESC commandQueueDesc{};
 	// 화면을 지우거나 삼각형을 그리는 그래픽 명령을 제출할 수 있는 큐
 	commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 	commandQueueDesc.Priority = D3D12_COMMAND_LIST_FLAG_NONE;
@@ -59,7 +61,7 @@ bool D3D12Renderer::Initialize(HWND hwnd)
 	const HRESULT swapChainASHr = swapChain.As(&m_swapChain);
 	if (FAILED(swapChainASHr)) return false;
 
-	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc {};
+	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc{};
 	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	rtvHeapDesc.NumDescriptors = BackBufferCount;
 	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
@@ -86,7 +88,80 @@ bool D3D12Renderer::Initialize(HWND hwnd)
 	HRESULT commandAllocatorHr = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator));
 	if (FAILED(commandAllocatorHr)) return false;
 
-	HRESULT commandListHr = m_device->CreateCommandList(
+
+	ComPtr<ID3DBlob> vertexShader;
+	ComPtr<ID3DBlob> pixelShader;
+	HRESULT readVSHr = D3DReadFileToBlob(L"x64\\Debug\\shaders_VSMain.cso", &vertexShader);
+	if (FAILED(readVSHr)) return false;
+	HRESULT readPSHr = D3DReadFileToBlob(L"x64\\Debug\\shaders_PSMain.cso", &pixelShader);
+	if (FAILED(readPSHr)) return false;
+
+	D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc{};
+	rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+	ComPtr<ID3DBlob> serializedRootSignature;
+	ComPtr<ID3DBlob> serializationErrors;
+
+	const HRESULT serializeHr = D3D12SerializeRootSignature(
+		&rootSignatureDesc,
+		D3D_ROOT_SIGNATURE_VERSION_1,
+		&serializedRootSignature,
+		&serializationErrors
+	);
+
+	if (FAILED(serializeHr)) return false;
+
+	const HRESULT rootSignatureHr = m_device->CreateRootSignature(
+		0,
+		serializedRootSignature->GetBufferPointer(),
+		serializedRootSignature->GetBufferSize(),
+		IID_PPV_ARGS(&m_rootSignature)
+	);
+
+	if (FAILED(rootSignatureHr)) return false;
+	const D3D12_INPUT_ELEMENT_DESC inputElements[] = {
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, static_cast<UINT>(offsetof(Vertex, position)), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, static_cast<UINT>(offsetof(Vertex, color)), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+	};
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
+	psoDesc.pRootSignature = m_rootSignature.Get();
+	psoDesc.InputLayout = { inputElements, static_cast<UINT>(_countof(inputElements)) };
+	psoDesc.VS = { vertexShader->GetBufferPointer(), vertexShader->GetBufferSize() };
+	psoDesc.PS = { pixelShader->GetBufferPointer(), pixelShader->GetBufferSize() };
+
+	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	psoDesc.NumRenderTargets = 1;
+	psoDesc.RTVFormats[0] = swapChainDesc.Format;
+	psoDesc.SampleDesc = swapChainDesc.SampleDesc;
+	psoDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
+
+	psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	psoDesc.RasterizerState.DepthClipEnable = TRUE;
+
+	auto& blend = psoDesc.BlendState.RenderTarget[0];
+	blend.BlendEnable = FALSE;
+	blend.LogicOpEnable = FALSE;
+	blend.SrcBlend = D3D12_BLEND_ONE;
+	blend.DestBlend = D3D12_BLEND_ZERO;
+	blend.BlendOp = D3D12_BLEND_OP_ADD;
+	blend.SrcBlendAlpha = D3D12_BLEND_ONE;
+	blend.DestBlendAlpha = D3D12_BLEND_ZERO;
+	blend.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	blend.LogicOp = D3D12_LOGIC_OP_NOOP;
+	blend.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+	psoDesc.DepthStencilState.DepthEnable = FALSE;
+	psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	psoDesc.DepthStencilState.StencilEnable = FALSE;
+
+	const HRESULT psoHr = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState));
+	if (FAILED(psoHr)) return false;
+
+
+	const HRESULT commandListHr = m_device->CreateCommandList(
 		0,
 		D3D12_COMMAND_LIST_TYPE_DIRECT,
 		m_commandAllocator.Get(),
@@ -95,10 +170,10 @@ bool D3D12Renderer::Initialize(HWND hwnd)
 	);
 	if (FAILED(commandListHr)) return false;
 
-	HRESULT commandListCloseHr = m_commandList->Close();
+	const HRESULT commandListCloseHr = m_commandList->Close();
 	if (FAILED(commandListCloseHr)) return false;
 
-	HRESULT createFenceHr = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence));
+	const HRESULT createFenceHr = m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence));
 	if (FAILED(createFenceHr)) return false;
 
 	m_fenceEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
@@ -154,17 +229,17 @@ bool D3D12Renderer::Render()
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
 	rtvHandle.ptr += frameIndex * m_rtvDescriptorSize;
 
-	const float clearColor[4] = {0.08f, 0.25f, 0.70f, 1.0f};
+	const float clearColor[4] = { 0.08f, 0.25f, 0.70f, 1.0f };
 	m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 
 	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 	m_commandList->ResourceBarrier(1, &barrier);
- 
+
 	HRESULT commandListCloseHr = m_commandList->Close();
 	if (FAILED(commandListCloseHr)) return false;
 
-	ID3D12CommandList* lists[] = {m_commandList.Get()};
+	ID3D12CommandList* lists[] = { m_commandList.Get() };
 
 	m_commandQueue->ExecuteCommandLists(1, lists);
 

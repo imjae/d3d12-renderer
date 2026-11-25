@@ -36,5 +36,8 @@ private:
 	UINT64 m_fenceValue = 0;
 	HANDLE m_fenceEvent = nullptr;
 
+	ComPtr<ID3D12RootSignature> m_rootSignature;
+	ComPtr<ID3D12PipelineState> m_pipelineState;
+
 	bool WaitForGPU();
 };
