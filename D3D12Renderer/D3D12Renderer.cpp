@@ -1,11 +1,5 @@
 ﻿#include "D3D12Renderer.h"
 
-/*
-해야할 일 정리
-1. device 생성
-2. commandQueue 생성
-3. swapChain 생성
-*/
 
 bool D3D12Renderer::Initialize(HWND hwnd)
 {
@@ -13,7 +7,6 @@ bool D3D12Renderer::Initialize(HWND hwnd)
 	{
 		return false;
 	}
-
 	const HRESULT deviceHr = D3D12CreateDevice(
 		nullptr,
 		D3D_FEATURE_LEVEL_11_0,

@@ -3,8 +3,10 @@
 #include <d3d12.h>
 #include <wrl/client.h>
 #include <dxgi1_4.h>
+#include <DirectXMath.h>
 
 using Microsoft::WRL::ComPtr;
+using namespace DirectX;
 
 class D3D12Renderer
 {
@@ -12,6 +14,12 @@ public:
 	bool Initialize(HWND hwnd);
 	bool Render();
 private:
+	struct Vertex
+	{
+		XMFLOAT3 position; // x, y, z
+		XMFLOAT4 color;    // r, g, b, a
+	};
+
 	ComPtr<ID3D12Device> m_device;
 	ComPtr<ID3D12CommandQueue> m_commandQueue;
 	ComPtr<IDXGISwapChain3> m_swapChain;
