@@ -1,0 +1,16 @@
+BasedOnStyle: Microsoft
+IndentWidth: 4
+TabWidth: 4
+UseTab: AlignWithSpaces
+ContinuationIndentWidth: 4
+ColumnLimit: 0
+AlignAfterOpenBracket: BlockIndent
+MaxEmptyLinesToKeep: 3
+AllowShortIfStatementsOnASingleLine: WithoutElse
+Cpp11BracedListStyle: false
+PointerAlignment: Left
+SortIncludes: Never
+AccessModifierOffset: -4
+EmptyLineBeforeAccessModifier: Never
+AlignTrailingComments:
+  Kind: Leave
