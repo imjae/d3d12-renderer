@@ -1,5 +1,6 @@
 ﻿#include "D3D12Renderer.h"
 #include <d3dcompiler.h>
+#include <cstring>
 
 
 bool D3D12Renderer::Initialize(HWND hwnd)
@@ -159,7 +160,54 @@ bool D3D12Renderer::Initialize(HWND hwnd)
 
 	const HRESULT psoHr = m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState));
 	if (FAILED(psoHr)) return false;
+	const Vertex TriangleVertices[] = {
+		{ { 0.0f, 0.5f, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
+		{ { 0.5f, -0.5f, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
+		{ { -0.5f, -0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
+	};
 
+	D3D12_HEAP_PROPERTIES uploadHeapProperties{};
+	uploadHeapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
+	uploadHeapProperties.CreationNodeMask = 1;
+	uploadHeapProperties.VisibleNodeMask = 1;
+	// const auto heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+	D3D12_RESOURCE_DESC vertexBufferDesc{};
+	vertexBufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	vertexBufferDesc.Width = sizeof(TriangleVertices);
+	vertexBufferDesc.Height = 1;
+	vertexBufferDesc.DepthOrArraySize = 1;
+	vertexBufferDesc.MipLevels = 1;
+	vertexBufferDesc.Format = DXGI_FORMAT_UNKNOWN;
+	vertexBufferDesc.SampleDesc.Count = 1;
+	vertexBufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	// const auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
+
+	const HRESULT vertexBufferHr = m_device->CreateCommittedResource(
+		&uploadHeapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&vertexBufferDesc,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(&m_vertexBuffer)
+	);
+	if (FAILED(vertexBufferHr)) return false;
+
+	const SIZE_T vertexDataSize = sizeof(TriangleVertices);
+
+	const D3D12_RANGE readRange{ 0, 0 };
+	void* mappedVertexData = nullptr;
+
+	const HRESULT mapHr = m_vertexBuffer->Map(0, &readRange, &mappedVertexData);
+	if (FAILED(mapHr)) return false;
+
+	std::memcpy(mappedVertexData, TriangleVertices, vertexDataSize);
+
+	const D3D12_RANGE writtenRange{ 0, vertexDataSize };
+	m_vertexBuffer->Unmap(0, &writtenRange);
+
+	m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
+	m_vertexBufferView.SizeInBytes = static_cast<UINT>(vertexDataSize);
+	m_vertexBufferView.StrideInBytes = static_cast<UINT>(sizeof(Vertex));
 
 	const HRESULT commandListHr = m_device->CreateCommandList(
 		0,
@@ -213,7 +261,7 @@ bool D3D12Renderer::Render()
 	HRESULT commandAllocatorResetHr = m_commandAllocator->Reset();
 	if (FAILED(commandAllocatorResetHr)) return false;
 
-	HRESULT commandListResetHr = m_commandList->Reset(m_commandAllocator.Get(), nullptr);
+	HRESULT commandListResetHr = m_commandList->Reset(m_commandAllocator.Get(), m_pipelineState.Get());
 	if (FAILED(commandListResetHr)) return false;
 
 	UINT frameIndex = m_swapChain->GetCurrentBackBufferIndex();
@@ -231,6 +279,30 @@ bool D3D12Renderer::Render()
 
 	const float clearColor[4] = { 0.08f, 0.25f, 0.70f, 1.0f };
 	m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+
+	const D3D12_RESOURCE_DESC backBufferDesc = m_backBuffers[frameIndex]->GetDesc();
+
+	const D3D12_VIEWPORT viewport{
+		0.0f, 0.0f,
+		static_cast<float>(backBufferDesc.Width),
+		static_cast<float>(backBufferDesc.Height),
+		0.0f, 1.0f
+	};
+
+	const D3D12_RECT scissorRect{
+		0, 0,
+		static_cast<LONG>(backBufferDesc.Width),
+		static_cast<LONG>(backBufferDesc.Height)
+	};
+
+	m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
+	m_commandList->RSSetViewports(1, &viewport);
+	m_commandList->RSSetScissorRects(1, &scissorRect);
+
+	m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+	m_commandList->DrawInstanced(3, 1, 0, 0);
 
 	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
